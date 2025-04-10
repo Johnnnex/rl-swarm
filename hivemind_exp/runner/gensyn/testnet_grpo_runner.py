@@ -7,9 +7,7 @@ import hivemind
 from datasets import Dataset
 from trl import GRPOConfig, ModelConfig
 
-from hivemind_exp.chain_utils import (
-    SwarmCoordinator,
-)
+from hivemind_exp.chain_utils import SwarmCoordinator
 from hivemind_exp.runner.grpo_runner import GRPOArguments, GRPORunner
 from hivemind_exp.trainer.gensyn.testnet_grpo_trainer import TestnetGRPOTrainer
 
@@ -20,7 +18,8 @@ logger = logging.getLogger(__name__)
 class TestnetGRPOArguments:
     # Mutually exclusive.
     wallet_private_key: str | None = None  # EOA wallet private key.
-    modal_org_id: str | None = None # Modal organization ID.
+    modal_org_id: str | None = None        # Modal organization ID.
+
 
 class TestnetGRPORunner(GRPORunner):
     def __init__(self, coordinator: SwarmCoordinator) -> None:
@@ -29,16 +28,22 @@ class TestnetGRPORunner(GRPORunner):
     def get_initial_peers(self) -> list[str]:
         return self.coordinator.get_bootnodes()
 
-    def register_peer(self, peer_id):
+    def register_peer(self, peer_id: str):
         logger.info(f"Registering self with peer ID: {peer_id}")
         self.coordinator.register_peer(peer_id)
 
-    def setup_dht(self, grpo_args):
+    def setup_dht(self, grpo_args: GRPOArguments) -> hivemind.DHT:
         initial_peers = grpo_args.initial_peers
         if not initial_peers:
             logger.info("Cannot locate on-chain initial peers; running alone.")
 
-        dht = hivemind.DHT(start=True, ensure_bootstrap_success=False, startup_timeout=30, self._dht_kwargs(grpo_args))
+        dht = hivemind.DHT(
+            start=True,
+            ensure_bootstrap_success=False,
+            startup_timeout=30,
+            **self._dht_kwargs(grpo_args),
+        )
+
         logger.info(f"🐝 Joining swarm with initial_peers = {initial_peers}")
 
         peer_id = str(dht.peer_id)
@@ -56,13 +61,11 @@ class TestnetGRPORunner(GRPORunner):
         initial_peers = self.get_initial_peers()
         logger.info(f"Retrieved initial peers from chain: {initial_peers}")
         grpo_args.initial_peers = initial_peers
+
         super().run(
             model_args,
             grpo_args,
             training_args,
             initial_datasets_fn,
-            partial(
-                TestnetGRPOTrainer,
-                coordinator=self.coordinator
-            ),
+            partial(TestnetGRPOTrainer, coordinator=self.coordinator),
         )
